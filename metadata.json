@@ -1,0 +1,8 @@
+{
+  "name": "StxWatch-MCMG",
+  "description": "Evidence-based micro-cap trend and valuation engine using the IESE (Investment Evidence Scoring Engine) v1.0 five-category scoring model, powered by Gemini Search Grounding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
