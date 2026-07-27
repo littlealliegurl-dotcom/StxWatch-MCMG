@@ -1,0 +1,44 @@
+name: Daily IESE Scoring
+
+on:
+  schedule:
+    # Run every day at 09:00 UTC (4 AM EST, before market open)
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: Build scorer
+        run: npm run score:build
+        
+      - name: Run IESE scoring
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AIRTABLE_PAT: ${{ secrets.AIRTABLE_PAT }}
+        run: npm run score:prod
+        
+      - name: Commit score records
+        run: |
+          git config user.name "StxWatch Bot"
+          git config user.email "bot@stxwatch.local"
+          git add -A
+          git commit -m "📊 Daily IESE scores — $(date -u +'%Y-%m-%d %H:%M UTC')" || true
+          
+      - name: Push changes
+        run: |
+          git push origin main || echo "No changes to push"
