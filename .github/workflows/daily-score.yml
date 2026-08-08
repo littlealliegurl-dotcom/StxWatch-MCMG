@@ -33,6 +33,7 @@ jobs:
         run: npm run score:prod
         
       - name: Commit score records
+        if: always()
         run: |
           git config user.name "StxWatch Bot"
           git config user.email "bot@stxwatch.local"
@@ -40,5 +41,6 @@ jobs:
           git commit -m "📊 Daily IESE scores — $(date -u +'%Y-%m-%d %H:%M UTC')" || true
           
       - name: Push changes
+        if: always()
         run: |
           git push origin main || echo "No changes to push"

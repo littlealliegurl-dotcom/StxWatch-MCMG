@@ -12,6 +12,23 @@
 
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import { writeFileSync } from "fs";
+
+// ────────────────────────────────────────────────────────────────────────────
+// Debug logging — written to disk so CI can commit it for inspection
+// ────────────────────────────────────────────────────────────────────────────
+
+const debugLines: string[] = [];
+function debugLog(line: string): void {
+  debugLines.push(line);
+}
+function flushDebugLog(): void {
+  try {
+    writeFileSync("scorer-debug.txt", debugLines.join("\n") + "\n", "utf-8");
+  } catch {
+    // best-effort only
+  }
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -76,6 +93,9 @@ async function airtableRequest(
   
   if (!response.ok) {
     const text = await response.text();
+    debugLog(`AIRTABLE ERROR — ${method} ${url}`);
+    debugLog(`Status: ${response.status}`);
+    debugLog(`Body: ${text}`);
     throw new Error(
       `Airtable API error (${response.status}): ${text}`
     );
@@ -257,6 +277,7 @@ async function runScoringAutomation(): Promise<void> {
   }
 
   console.log("\n✅ Scoring automation complete\n");
+  flushDebugLog();
 }
 
 // ────────────────────────────────────────────────────────────────────────────
