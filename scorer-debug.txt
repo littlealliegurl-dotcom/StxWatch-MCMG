@@ -1,0 +1,3 @@
+AIRTABLE ERROR — POST https://api.airtable.com/v0/apppoYLfhlaPHeFhO/tblyi3vwdStEI5Svh
+Status: 403
+Body: Host not in allowlist: api.airtable.com. Add this host to your network egress settings to allow access.

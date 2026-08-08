@@ -38,9 +38,12 @@ jobs:
           git config user.name "StxWatch Bot"
           git config user.email "bot@stxwatch.local"
           git add -A
-          git commit -m "📊 Daily IESE scores — $(date -u +'%Y-%m-%d %H:%M UTC')" || true
-          
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "📊 Daily IESE scores — $(date -u +'%Y-%m-%d %H:%M UTC')"
+          fi
+
       - name: Push changes
         if: always()
-        run: |
-          git push origin main || echo "No changes to push"
+        run: git push origin main
