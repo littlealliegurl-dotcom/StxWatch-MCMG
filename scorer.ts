@@ -20,8 +20,8 @@ import { GoogleGenAI } from "@google/genai";
 dotenv.config();
 
 const SEED_BASKET = ["ASTS", "RENE", "BMEA", "LUNA", "QUBT"] as const;
-const AIRTABLE_BASE_ID = "app28hlWLnX51LBxk";
-const AIRTABLE_SCORES_TABLE_ID = "tblScores"; // Will be created if needed
+const AIRTABLE_BASE_ID = "apppoYLfhlaPHeFhO"; // Scores base (separate from the repo-mirror base app28hlWLnX51LBxk)
+const AIRTABLE_SCORES_TABLE_ID = "tblyi3vwdStEI5Svh"; // tblScores
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
@@ -111,7 +111,7 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<void> {
   for (let i = 0; i < records.length; i += 10) {
     const batch = records.slice(i, i + 10);
     try {
-      await airtableRequest("POST", "tblScores", { records: batch });
+      await airtableRequest("POST", AIRTABLE_SCORES_TABLE_ID, { records: batch });
       console.log(`  ✓ Batch ${Math.floor(i / 10) + 1} written`);
     } catch (err) {
       console.error(`  ✗ Batch ${Math.floor(i / 10) + 1} failed:`, err);
