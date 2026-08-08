@@ -84,10 +84,10 @@ async function airtableRequest(
   return response.json();
 }
 
-async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<void> {
+async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<boolean> {
   if (!AIRTABLE_PAT) {
     console.log("⚠️  AIRTABLE_PAT not set — skipping Airtable write");
-    return;
+    return false;
   }
 
   const records = scores.map((score) => ({
@@ -106,7 +106,9 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<void> {
   }));
 
   console.log(`📊 Writing ${records.length} score records to Airtable...`);
-  
+
+  let allSucceeded = true;
+
   // Airtable has a 10-record batch limit
   for (let i = 0; i < records.length; i += 10) {
     const batch = records.slice(i, i + 10);
@@ -115,8 +117,11 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<void> {
       console.log(`  ✓ Batch ${Math.floor(i / 10) + 1} written`);
     } catch (err) {
       console.error(`  ✗ Batch ${Math.floor(i / 10) + 1} failed:`, err);
+      allSucceeded = false;
     }
   }
+
+  return allSucceeded;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -236,10 +241,19 @@ async function runScoringAutomation(): Promise<void> {
 
   // Write to Airtable if configured
   if (AIRTABLE_PAT) {
-    await writeScoresToAirtable(scores);
+    const wroteOk = await writeScoresToAirtable(scores);
+    if (!wroteOk) {
+      console.error(
+        "\n❌ One or more Airtable writes failed. Common cause: the AIRTABLE_PAT token " +
+          "doesn't have access to this base. Check https://airtable.com/create/tokens and " +
+          "confirm the token's 'Access' list includes this base.\n"
+      );
+      process.exitCode = 1;
+    }
   } else {
     console.log("📄 Airtable credentials not configured — results not persisted");
     console.log("   Set AIRTABLE_PAT environment variable to enable writes");
+    process.exitCode = 1;
   }
 
   console.log("\n✅ Scoring automation complete\n");
