@@ -176,19 +176,19 @@ Provide a JSON response with this exact structure (numeric scores 0-100):
 Be conservative in scoring — prefer accuracy over optimism.`;
 
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction:
+          "You are a rigorous, evidence-based equities research engine. Every score must be traceable to evidence you actually found. Prefer honesty about uncertainty over confident fabrication.",
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+      },
     });
 
-    const text =
-      result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const jsonMatch = text.match(/\{[^}]+\}/);
+    const text = response.text ? response.text.trim() : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
       console.warn(`  ⚠️  Could not parse Gemini response for ${ticker}`);
