@@ -250,8 +250,10 @@ async function runScoringAutomation(): Promise<void> {
   console.log(`📅 ${new Date().toISOString()}\n`);
 
   const scores: ScoreRecord[] = [];
+  const DELAY_BETWEEN_TICKERS_MS = 15000; // stay under free-tier RPM for grounded requests
 
-  for (const ticker of SEED_BASKET) {
+  for (let i = 0; i < SEED_BASKET.length; i++) {
+    const ticker = SEED_BASKET[i];
     console.log(`📈 Analyzing ${ticker}...`);
     try {
       const score = await analyzeTickerWithGemini(ticker);
@@ -261,6 +263,11 @@ async function runScoringAutomation(): Promise<void> {
       );
     } catch (err) {
       console.error(`  ✗ Failed:`, err);
+    }
+
+    if (i < SEED_BASKET.length - 1) {
+      debugLog(`Waiting ${DELAY_BETWEEN_TICKERS_MS / 1000}s before next ticker (rate limit spacing)`);
+      await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_TICKERS_MS));
     }
   }
 
