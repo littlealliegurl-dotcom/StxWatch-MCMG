@@ -150,6 +150,7 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<boolean> {
 
 async function analyzeTickerWithGemini(ticker: string): Promise<ScoreRecord> {
   if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+    debugLog(`GEMINI SKIPPED for ${ticker} — key is ${!GEMINI_API_KEY ? "empty/unset" : "placeholder value"} (length: ${GEMINI_API_KEY.length})`);
     console.log(`  (No Gemini API key — using simulated analysis for ${ticker})`);
     return generateSimulatedScore(ticker);
   }
