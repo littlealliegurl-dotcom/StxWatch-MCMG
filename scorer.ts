@@ -191,6 +191,8 @@ Be conservative in scoring — prefer accuracy over optimism. Since you don't ha
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
+      debugLog(`GEMINI PARSE FAILURE for ${ticker} — raw response (first 500 chars):`);
+      debugLog(text.slice(0, 500) || "(empty response)");
       console.warn(`  ⚠️  Could not parse Gemini response for ${ticker}`);
       return generateSimulatedScore(ticker);
     }
