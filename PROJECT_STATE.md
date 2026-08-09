@@ -63,10 +63,11 @@ This is the newest piece, built and debugged over this session. It runs independ
 
 ## Airtable Setup
 
-There are **two separate bases** in use — this split happened organically during setup and there's no strong reason to unify them, but it's worth knowing about so it's not confusing later:
+There are **three** Airtable bases in play now — worth knowing about so nothing looks like clutter later:
 
-1. **StxWatch-MCMG Repo Mirror** (`app28hlWLnX51LBxk`) — mirrors the repo's file structure as records (Files, Contributors, Conflicts & Changelog tables). This predates the scoring automation and isn't touched by `scorer.ts`.
-2. **SCORES** (`apppoYLfhlaPHeFhO`), table `tblScores` (`tblyi3vwdStEI5Svh`) — where the automation writes. Fields: Ticker, Overall Score, Confidence, Last Updated, Demand, Execution, Competition, Financial, External, Evidence Count.
+1. **StxWatch-MCMG Repo Mirror** (`app28hlWLnX51LBxk`) — mirrors the repo's file structure as records (Files, Contributors, Conflicts & Changelog tables). Predates the scoring automation, untouched by `scorer.ts`.
+2. **SCORES** (`apppoYLfhlaPHeFhO`), table `tblScores` (`tblyi3vwdStEI5Svh`) — the live table `scorer.ts` writes to. Fields: Ticker, Overall Score, Confidence, Last Updated, Demand, Execution, Competition, Financial, External, Evidence Count. Only genuine analysis lives here — every record is real.
+3. **StxWatch Score Testing Archive** (`app7c5DL3Sc57zhL8`), table "Archived Test Records" — 32 records from the setup/debugging phase (simulated fallbacks from each bug fixed along the way, one manual test write, one empty placeholder), each tagged with a Data Source category and a plain-language Notes explanation of what happened. This is a real error log, not just discarded test data — worth a look if a similar failure pattern ever shows up again.
 
 **Credentials required (as GitHub Actions secrets on the repo):**
 - `AIRTABLE_PAT` — must have scopes `data.records:read` and `data.records:write` (not `data.recordComments:*` — easy mix-up in Airtable's token UI), and must have both bases listed under Access
