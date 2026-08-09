@@ -210,6 +210,12 @@ Be conservative in scoring — prefer accuracy over optimism.`;
       last_updated: new Date().toISOString(),
     };
   } catch (err) {
+    const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    debugLog(`GEMINI ERROR — ticker ${ticker}`);
+    debugLog(errMsg);
+    if (err instanceof Error && err.stack) {
+      debugLog(err.stack);
+    }
     console.warn(`  ⚠️  Gemini request failed for ${ticker}:`, err);
     return generateSimulatedScore(ticker);
   }
