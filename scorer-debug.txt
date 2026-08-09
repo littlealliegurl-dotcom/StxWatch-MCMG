@@ -1,5 +1,45 @@
-GEMINI SKIPPED for ASTS — key is empty/unset (length: 0)
-GEMINI SKIPPED for RENE — key is empty/unset (length: 0)
-GEMINI SKIPPED for BMEA — key is empty/unset (length: 0)
-GEMINI SKIPPED for LUNA — key is empty/unset (length: 0)
-GEMINI SKIPPED for QUBT — key is empty/unset (length: 0)
+GEMINI ERROR — ticker ASTS
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:191:21)
+GEMINI ERROR — ticker RENE
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:191:21)
+GEMINI ERROR — ticker BMEA
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:191:21)
+GEMINI ERROR — ticker LUNA
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:191:21)
+GEMINI ERROR — ticker QUBT
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+ApiError: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. ","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]}]}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:191:21)
