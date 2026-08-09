@@ -119,7 +119,10 @@ npm run score
 Your token is invalid or expired. Generate a new one at https://airtable.com/account/tokens.
 
 ### "Could not parse Gemini response"
-Gemini returned unexpected JSON. Check the raw response in logs. This shouldn't happen with `gemini-2.0-flash`, but if it does, the scorer falls back to simulation.
+Gemini returned unexpected JSON. Check the raw response in logs (or `scorer-debug.txt`, committed on every run). This shouldn't happen with `gemini-3.5-flash`, but if it does, the scorer falls back to simulation.
+
+### A note on Google Search grounding
+The scorer intentionally does **not** use Gemini's Google Search grounding tool. Free-tier keys hit immediate `429 RESOURCE_EXHAUSTED` errors when grounding is combined with `gemini-3.5-flash` — a known, widely-reported issue, not specific to this project. Analysis currently runs off Gemini's training knowledge instead, which keeps it on the free tier and reliably working, at the cost of not reflecting live market/news data. This was a deliberate choice: working-but-imperfect now, with the option to enable billing and re-add grounding later once everything else is stable.
 
 ### "Table not found (404)"
 The `tblScores` table ID in `scorer.ts` doesn't exist in your Airtable base. Either create the table or update the ID.

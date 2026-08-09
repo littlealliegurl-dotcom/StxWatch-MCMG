@@ -160,7 +160,7 @@ async function analyzeTickerWithGemini(ticker: string): Promise<ScoreRecord> {
     httpOptions: { headers: { "User-Agent": "stxwatch-mcmg-scorer" } },
   });
 
-  const prompt = `Conduct a comprehensive Investment Evidence Scoring Engine (IESE) analysis for ${ticker}.
+  const prompt = `Conduct a comprehensive Investment Evidence Scoring Engine (IESE) analysis for ${ticker}, based on your training knowledge of the company (you do not have live web search access for this analysis).
 
 Provide a JSON response with this exact structure (numeric scores 0-100):
 {
@@ -171,10 +171,10 @@ Provide a JSON response with this exact structure (numeric scores 0-100):
   "competition": <number>,
   "financial": <number>,
   "external": <number>,
-  "evidence_count": <number of evidence items found>
+  "evidence_count": <number of distinct facts/observations you're confident are accurate from training data>
 }
 
-Be conservative in scoring — prefer accuracy over optimism.`;
+Be conservative in scoring — prefer accuracy over optimism. Since you don't have live data, keep "confidence" lower than you would with real-time search, and be honest that this reflects your training-data knowledge rather than current market conditions.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -182,8 +182,7 @@ Be conservative in scoring — prefer accuracy over optimism.`;
       contents: prompt,
       config: {
         systemInstruction:
-          "You are a rigorous, evidence-based equities research engine. Every score must be traceable to evidence you actually found. Prefer honesty about uncertainty over confident fabrication.",
-        tools: [{ googleSearch: {} }],
+          "You are a rigorous, evidence-based equities research engine working from training knowledge only (no live search access). Every score must be traceable to something you actually know. Prefer honesty about uncertainty over confident fabrication — lower confidence scores are expected and correct given the lack of live data.",
         responseMimeType: "application/json",
       },
     });

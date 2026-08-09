@@ -74,25 +74,19 @@ There are **two separate bases** in use — this split happened organically duri
 
 Both secrets are currently set correctly as of this writing.
 
-## Current Status: Working, With One Caveat
+## Current Status: Working End-to-End
 
-The full pipeline runs end-to-end successfully: GitHub Actions triggers → scorer runs → writes to Airtable → confirmed via direct record lookup. Nine debugging fixes went into getting here (see PROJECT_LOG.md for the blow-by-blow if it's ever needed, but it generally shouldn't be).
+The full pipeline runs successfully: GitHub Actions triggers → scorer runs → writes to Airtable → confirmed via direct record lookup. Nine debugging fixes went into getting here (see PROJECT_LOG.md for the blow-by-blow if it's ever needed, but it generally shouldn't be).
 
-**The caveat:** Gemini's Google Search grounding tool is currently returning immediate 429 (quota exceeded) errors on the free tier — this is a known, widely-reported issue with `gemini-3.5-flash` + grounding right now, not something specific to this project's setup. Every run since the fix is landing on the **simulated fallback scores**, not real Gemini analysis. The pipeline is technically working — it's just not doing what it's supposed to do yet.
+**Gemini grounding decision (resolved):** `gemini-3.5-flash` combined with Google Search grounding was hitting immediate `429 RESOURCE_EXHAUSTED` on the free tier — a known, widely-reported issue, not specific to this setup. Decision made: drop the grounding tool and run on training knowledge instead, staying on the free tier. Rationale, in Alonzo's words: "working and imperfect versus perfect and not working." The plan is to tighten the scoring model until it's producing exactly what's wanted, *then* enable billing and re-add live search grounding — not the other way around. This is implemented as of this writing; the prompt and system instruction were also adjusted so Gemini is explicit about working from training data rather than implying it searched live sources.
 
-Three paths forward, not yet decided:
-1. Enable billing on the Google Cloud project behind the Gemini key
-2. Drop the Google Search grounding tool from the Gemini call (works on free tier, loses live-search currency)
-3. Leave it on simulated data for now
-
-This decision is the natural first thing to pick up in a fresh conversation.
-
-## Roadmap (from original SCORER.md, still open)
+## Roadmap
 
 - Score history log (12–15 entries per ticker) with a momentum indicator (↑↑, ↑, →, ↓, ↓↓)
 - Desktop/tablet layout support for the web app (currently not built)
 - A dashboard to visualize score trends over time from the Airtable history
+- Once the scoring model is tuned and producing what's wanted: enable billing on the Gemini API project and re-add Google Search grounding for live-data analysis
 
 ## How to Pick This Back Up
 
-If starting fresh: clone the repo, read this file, then read `SCORER.md` for automation specifics. The main open decision is the Gemini billing/grounding question above — everything else is in working order.
+If starting fresh: clone the repo, read this file, then read `SCORER.md` for automation specifics. Everything is in working order — the natural next step is watching a few days of automated runs and tuning the scoring model, not fixing anything.
