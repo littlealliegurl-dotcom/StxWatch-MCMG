@@ -2,3 +2,13 @@ Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
+GEMINI PARSE FAILURE for QUBT — raw response (first 500 chars):
+{
+  "overall": 24,
+  "confidence": 35,
+  "demand": 30,
+  "execution": 22,
+  "competition": 18,
+  "financial": 8,
+  "external": 45,
+  "evidence_count": 5
