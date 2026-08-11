@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>StxWatch-MCMG — System Architecture</title>
+<style>
+  :root{
+    --paper:#F6F5F1;
+    --ink:#1C2530;
+    --muted:#5B6472;
+    --hair:#DAD7CD;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+    padding:28px 24px 60px;
+  }
+  .prose{font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;}
+  header{max-width:1400px;margin:0 auto 22px;}
+  h1{
+    font-family:'Inter', sans-serif;
+    font-size:20px;
+    font-weight:600;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    font-family:'Inter', sans-serif;
+    font-size:13px;
+    color:var(--muted);
+    margin:0 0 16px;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 16px;
+    font-size:11px;
+    color:var(--muted);
+    font-family:'Inter', sans-serif;
+    border-top:1px solid var(--hair);
+    border-bottom:1px solid var(--hair);
+    padding:10px 0;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+  .board{
+    max-width:1400px;
+    margin:0 auto;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .group{
+    width:252px;
+    flex:0 0 252px;
+    background:var(--card);
+    border:1px solid var(--hair);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .group-head{
+    padding:10px 12px 9px;
+    border-bottom:1px solid var(--hair);
+  }
+  .group-head h2{
+    font-family:'Inter', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .group-head p{
+    font-family:'Inter', sans-serif;
+    font-size:10.5px;
+    color:var(--muted);
+    margin:2px 0 0;
+  }
+  .items{padding:9px;display:flex;flex-direction:column;gap:7px;}
+  .card{
+    border-radius:7px;
+    padding:8px 9px 9px;
+    border:1px solid transparent;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .card.dim{opacity:0.42;}
+  .card.hit{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px var(--accent);
+  }
+  .card.flag{border-style:dashed;border-color:#C23B3B;}
+  .id-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    margin-bottom:3px;
+  }
+  .id-chip{
+    font-size:10px;
+    font-weight:600;
+    padding:1px 5px;
+    border-radius:4px;
+    letter-spacing:0.02em;
+  }
+  .flagword{
+    font-family:'Inter', sans-serif;
+    font-size:9px;
+    font-weight:600;
+    color:#C23B3B;
+    letter-spacing:0.04em;
+  }
+  .name{
+    font-family:'Inter', sans-serif;
+    font-size:12.5px;
+    font-weight:600;
+    margin:0 0 2px;
+    line-height:1.3;
+  }
+  .desc{
+    font-family:'Inter', sans-serif;
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.45;
+    margin:0;
+  }
+  .links{
+    margin-top:6px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+  }
+  .link-chip{
+    font-size:9.5px;
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--muted);
+    background:var(--paper);
+    border:1px solid var(--hair);
+    border-radius:4px;
+    padding:1px 5px;
+    cursor:default;
+  }
+  .flow-note{
+    max-width:1400px;
+    margin:20px auto 0;
+    font-family:'Inter', sans-serif;
+    font-size:11.5px;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  @media (max-width:640px){
+    .board{flex-direction:column;}
+    .group{width:100%;flex:1 1 auto;}
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+<header>
+  <h1>StxWatch-MCMG — system architecture</h1>
+  <p class="subtitle">Live-verified 2026-08-08. Frontend on the left, backend on the right, automation and Airtable in between. Hover any <span style="font-family:'IBM Plex Mono',monospace">→ id</span> chip to trace a connection. Dashed red cards are open gaps.</p>
+  <div class="legend" id="legend"></div>
+</header>
+<div class="board" id="board"></div>
+<p class="flow-note">Read order: FE (dashboard) → DC (shared schema) → BE (Express app) → AP (daily automation) → EXT / CR (Gemini, GitHub, secrets) → AT (Airtable bases) → RM (open items)</p>
+
+<script>
+const groups = [
+  {
+    id:'frontend', title:'Frontend', sub:'React 19 · Vite 6 · Tailwind v4', color:'#2F6FED', bg:'#EAF1FE',
+    items:[
+      {id:'FE01', name:'App.tsx', desc:'Main dashboard UI (755 lines) — table/bento views + detail view. Everything else in this column lives inside it.', links:['DC01','BE03']},
+      {id:'FE02', name:'main.tsx', desc:'Entry point (10 lines), mounts App.tsx.', links:['FE01']},
+      {id:'FE03', name:'index.css', desc:'Tailwind entry (1 line).'},
+      {id:'FE04', name:'Business Health Meter', desc:'Ring UI. Five-state read via getHealthState(score.overall): excellent / strong / positive / neutral / at-risk.'},
+      {id:'FE05', name:'Confidence bar', desc:'Displays score.confidence.'},
+      {id:'FE06', name:'Category scores grid', desc:'Displays categories[key].score + metrics[] for demand / execution / competition / financial / external.'},
+      {id:'FE07', name:'Evidence trail', desc:'Expandable list rendering evidence[] items.'},
+      {id:'FE08', name:'Real/simulated badge', desc:'Always-visible top-bar badge.', links:['BE02']},
+      {id:'FE09', name:'Ask AI to re-score', desc:'POSTs a ticker; holds the result as a pending suggestion until Confirm / Discard.', links:['BE04']},
+      {id:'FE10', name:'Refresh All Scores', desc:'Currently stubbed — bumps a timestamp only, does not truly re-fetch.', links:['RM06'], flag:'STUB'},
+    ]
+  },
+  {
+    id:'contract', title:'Data contract', sub:'Shared schema, backend-first', color:'#6B7280', bg:'#EFEFEC',
+    items:[
+      {id:'DC01', name:'CompanyScore schema', desc:'company / score / categories / evidence / summary. Change order: contract → types.ts → backend → dashboard.'}
+    ]
+  },
+  {
+    id:'backend', title:'Backend web app', sub:'Express 4 · @google/genai', color:'#1E8A5F', bg:'#EAF6EF',
+    items:[
+      {id:'BE01', name:'server.ts', desc:'Express backend (768 lines): routes + Gemini integration.', links:['DC01','BE07']},
+      {id:'BE02', name:'GET /api/config', desc:'Returns { demoMode }.'},
+      {id:'BE03', name:'GET /api/stocks', desc:'Returns CompanyScore[].'},
+      {id:'BE04', name:'POST /api/stocks/analyze', desc:'Body {ticker} → one CompanyScore. Pending only, not auto-applied.', links:['BE05','EXT01']},
+      {id:'BE05', name:'computeOverallScore()', desc:'Server-only. score.overall is never trusted raw from Gemini.', links:['BE06']},
+      {id:'BE06', name:'data/stocks.json', desc:'Flat-file JSON persistence.'},
+      {id:'BE07', name:'types.ts', desc:'Shared types + scoring logic + getHealthState() (223 lines).'},
+    ]
+  },
+  {
+    id:'automation', title:'Automation pipeline', sub:'Daily, unattended', color:'#C2740A', bg:'#FBF0E1',
+    items:[
+      {id:'AP01', name:'scorer.ts', desc:'Standalone script (~300 lines): loops the seed basket, scores, writes Airtable.', links:['EXT01','AP03','AP04','DC01']},
+      {id:'AP02', name:'daily-score.yml', desc:'GitHub Actions: cron 09:00 UTC + manual dispatch. permissions: contents:write.', links:['AP01','AP04','EXT02','CR01','CR02']},
+      {id:'AP03', name:'writeScoresToAirtable()', desc:'Returns a success/failure bool; sets process.exitCode=1 on failure.', links:['AT01']},
+      {id:'AP04', name:'scorer-debug.txt', desc:'Committed every run (if: always()) — primary diagnostic tool.'},
+    ]
+  },
+  {
+    id:'external', title:'External services & credentials', sub:'', color:'#7C5CD4', bg:'#F1EDFB',
+    items:[
+      {id:'EXT01', name:'Gemini API', desc:'@google/genai, ai.models.generateContent(). Training-knowledge only — grounding OFF.', links:['RM04']},
+      {id:'EXT02', name:'GitHub main branch', desc:'littlealliegurl-dotcom/StxWatch-MCMG — sole source of truth for all code.', links:['BE01','FE01','AP01','AP02','AT02']},
+      {id:'CR01', name:'AIRTABLE_PAT', desc:'Scopes: data.records:read/write. Access: SCORES + Repo Mirror working copy.'},
+      {id:'CR02', name:'GEMINI_API_KEY', desc:'aistudio.google.com/apikey — free-tier by deliberate choice.'},
+    ]
+  },
+  {
+    id:'airtable', title:'Airtable', sub:'4 bases', color:'#B8860B', bg:'#FBF3DC',
+    items:[
+      {id:'AT01', name:'SCORES base', desc:'apppoYLfhlaPHeFhO / tblScores — the only base scorer.ts writes to. Live pipeline output.', links:['RM01','RM03']},
+      {id:'AT02', name:'Repo Mirror — working copy', desc:'app28hlWLnX51LBxk. Manually synced; STALE since 2026-07-26; not touched by scorer.ts.', links:['AT03','RM05'], flag:'STALE'},
+      {id:'AT03', name:'Repo Mirror — SOLO', desc:'appQRMpz3fYkxOVid. Frozen snapshot, 2026-07-26 — never edit.'},
+      {id:'AT04', name:'Score Testing Archive', desc:'app7c5DL3Sc57zhL8. Debugging-phase records (Aug 8–9), kept separate from tblScores.'},
+    ]
+  },
+  {
+    id:'roadmap', title:'Needs attention', sub:'Open items — where to focus next', color:'#C23B3B', bg:'#FBEAEA',
+    items:[
+      {id:'RM01', name:'Score history log', desc:'Not built: 12–15 entries/ticker + momentum indicator.', flag:'GAP'},
+      {id:'RM02', name:'Desktop/tablet layout', desc:'Not built: web app has no larger-viewport support yet.', flag:'GAP'},
+      {id:'RM03', name:'Trend dashboard', desc:'Not built: visualize score history from Airtable.', flag:'GAP'},
+      {id:'RM04', name:'Re-enable Gemini grounding', desc:'Deferred until scoring model is tuned + billing enabled.', flag:'DEFERRED'},
+      {id:'RM05', name:'Resync Repo Mirror (working copy)', desc:'Files table stale since 2026-07-26.', flag:'GAP'},
+      {id:'RM06', name:'Fix Refresh All Scores stub', desc:"Currently only bumps timestamp, doesn't truly re-fetch.", flag:'GAP'},
+    ]
+  }
+];
+
+const board = document.getElementById('board');
+const legend = document.getElementById('legend');
+const idIndex = {};
+
+groups.forEach(g=>{
+  const dot = document.createElement('span');
+  dot.innerHTML = `<span class="dot" style="background:${g.color}"></span>${g.title}`;
+  legend.appendChild(dot);
+
+  const col = document.createElement('div');
+  col.className = 'group';
+  col.style.setProperty('--accent', g.color);
+
+  const head = document.createElement('div');
+  head.className = 'group-head';
+  head.style.borderTop = `3px solid ${g.color}`;
+  head.innerHTML = `<h2>${g.title}</h2>${g.sub ? `<p>${g.sub}</p>` : ''}`;
+  col.appendChild(head);
+
+  const items = document.createElement('div');
+  items.className = 'items';
+
+  g.items.forEach(it=>{
+    const card = document.createElement('div');
+    card.className = 'card' + (it.flag ? ' flag' : '');
+    card.id = 'card-' + it.id;
+    card.style.background = g.bg;
+    card.style.setProperty('--accent', g.color);
+
+    const idRow = document.createElement('div');
+    idRow.className = 'id-row';
+    idRow.innerHTML = `<span class="id-chip" style="background:${g.color};color:#fff">${it.id}</span>${it.flag ? `<span class="flagword">${it.flag}</span>` : ''}`;
+    card.appendChild(idRow);
+
+    const name = document.createElement('p');
+    name.className = 'name';
+    name.textContent = it.name;
+    card.appendChild(name);
+
+    const desc = document.createElement('p');
+    desc.className = 'desc';
+    desc.textContent = it.desc;
+    card.appendChild(desc);
+
+    if(it.links && it.links.length){
+      const linkRow = document.createElement('div');
+      linkRow.className = 'links';
+      it.links.forEach(l=>{
+        const chip = document.createElement('span');
+        chip.className = 'link-chip';
+        chip.textContent = '→ ' + l;
+        chip.onmouseenter = ()=> highlight(it.id, l);
+        chip.onmouseleave = clearHighlight;
+        linkRow.appendChild(chip);
+      });
+      card.appendChild(linkRow);
+    }
+
+    idIndex[it.id] = card;
+    items.appendChild(card);
+  });
+
+  col.appendChild(items);
+  board.appendChild(col);
+});
+
+function highlight(fromId, toId){
+  document.querySelectorAll('.card').forEach(c=>c.classList.add('dim'));
+  const a = idIndex[fromId], b = idIndex[toId];
+  if(a){ a.classList.remove('dim'); a.classList.add('hit'); }
+  if(b){ b.classList.remove('dim'); b.classList.add('hit'); }
+}
+function clearHighlight(){
+  document.querySelectorAll('.card').forEach(c=>{c.classList.remove('dim');c.classList.remove('hit');});
+}
+</script>
+</body>
+</html>
