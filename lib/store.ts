@@ -185,8 +185,12 @@ export async function saveStock(
   }
 
   try {
-    await airtable("PATCH", AIRTABLE_SCORES_TABLE_ID, {
-      performUpsert: { fieldsToMergeOn: ["Ticker"] },
+    // Append, don't upsert. scorer.ts POSTs a fresh row per ticker per run, so
+    // tblScores already holds many rows for the same Ticker — and Airtable's
+    // performUpsert fails outright when more than one record matches the merge
+    // field. Appending keeps both writers consistent and preserves history;
+    // listStocks() collapses to the newest row per ticker on read.
+    await airtable("POST", AIRTABLE_SCORES_TABLE_ID, {
       records: [
         {
           fields: {
