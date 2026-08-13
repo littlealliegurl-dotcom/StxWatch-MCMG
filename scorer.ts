@@ -11,7 +11,7 @@
  */
 
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { writeFileSync } from "fs";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -53,6 +53,12 @@ interface ScoreRecord {
   financial: number;
   external: number;
   evidence_count: number;
+  /**
+   * Whether this row is real Gemini analysis or the deterministic fallback.
+   * Persisted to Airtable so a simulated row is never mistaken for signal —
+   * that confusion is what let fabricated scores sit undetected before.
+   */
+  data_source: "live" | "simulated";
 }
 
 interface ScoreHistory {
@@ -122,6 +128,7 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<boolean> {
       Financial: score.financial,
       External: score.external,
       "Evidence Count": score.evidence_count,
+      "Data Source": score.data_source,
     },
   }));
 
@@ -147,6 +154,43 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<boolean> {
 // ────────────────────────────────────────────────────────────────────────────
 // Scoring Logic (Gemini-backed with fallback simulation)
 // ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Coerce a model-supplied score to an integer. Uses an explicit finite check
+ * rather than `||` so a legitimate score of 0 survives instead of silently
+ * becoming the fallback value.
+ */
+function num(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.round(value)
+    : fallback;
+}
+
+/**
+ * Parse the model's JSON payload. With responseSchema set the whole response
+ * should already be valid JSON, so that is tried first; the brace-matching
+ * fallback stays for responses wrapped in prose or a code fence.
+ */
+function parseScorePayload(text: string): Record<string, unknown> | null {
+  if (!text) return null;
+
+  const attempts: string[] = [text];
+  const braceMatch = text.match(/\{[\s\S]*\}/);
+  if (braceMatch) attempts.push(braceMatch[0]);
+
+  for (const candidate of attempts) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
+
+  return null;
+}
 
 async function analyzeTickerWithGemini(ticker: string): Promise<ScoreRecord> {
   if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
@@ -184,32 +228,67 @@ Be conservative in scoring — prefer accuracy over optimism. Since you don't ha
         systemInstruction:
           "You are a rigorous, evidence-based equities research engine working from training knowledge only (no live search access). Every score must be traceable to something you actually know. Prefer honesty about uncertainty over confident fabrication — lower confidence scores are expected and correct given the lack of live data.",
         responseMimeType: "application/json",
+        // Without an explicit schema the model emits free-form JSON that can stop
+        // mid-object — which is exactly how RENE truncated before its closing
+        // brace and fell through to the simulated fallback on every run.
+        // server.ts has always constrained its own call this way; this matches it.
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            overall: { type: Type.INTEGER },
+            confidence: { type: Type.INTEGER },
+            demand: { type: Type.INTEGER },
+            execution: { type: Type.INTEGER },
+            competition: { type: Type.INTEGER },
+            financial: { type: Type.INTEGER },
+            external: { type: Type.INTEGER },
+            evidence_count: { type: Type.INTEGER },
+          },
+          required: [
+            "overall",
+            "confidence",
+            "demand",
+            "execution",
+            "competition",
+            "financial",
+            "external",
+            "evidence_count",
+          ],
+        },
       },
     });
 
     const text = response.text ? response.text.trim() : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    
-    if (!jsonMatch) {
-      debugLog(`GEMINI PARSE FAILURE for ${ticker} — raw response (first 500 chars):`);
+    const finishReason = response.candidates?.[0]?.finishReason ?? "(none reported)";
+
+    const parsed = parseScorePayload(text);
+
+    if (!parsed) {
+      // Record *why* it failed, not just that it did. A bare "parse failure" is
+      // what made this bug take two runs to characterise.
+      debugLog(`GEMINI PARSE FAILURE for ${ticker}`);
+      debugLog(`  finishReason: ${finishReason}`);
+      debugLog(`  response length: ${text.length} chars`);
+      debugLog(`  raw response (first 500 chars):`);
       debugLog(text.slice(0, 500) || "(empty response)");
-      console.warn(`  ⚠️  Could not parse Gemini response for ${ticker}`);
+      console.warn(
+        `  ⚠️  Could not parse Gemini response for ${ticker} (finishReason: ${finishReason})`
+      );
       return generateSimulatedScore(ticker);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    
     return {
       ticker,
-      overall: Math.round(parsed.overall || 50),
-      confidence: Math.round(parsed.confidence || 50),
-      demand: Math.round(parsed.demand || 50),
-      execution: Math.round(parsed.execution || 50),
-      competition: Math.round(parsed.competition || 50),
-      financial: Math.round(parsed.financial || 50),
-      external: Math.round(parsed.external || 50),
-      evidence_count: parsed.evidence_count || 0,
+      overall: num(parsed.overall, 50),
+      confidence: num(parsed.confidence, 50),
+      demand: num(parsed.demand, 50),
+      execution: num(parsed.execution, 50),
+      competition: num(parsed.competition, 50),
+      financial: num(parsed.financial, 50),
+      external: num(parsed.external, 50),
+      evidence_count: num(parsed.evidence_count, 0),
       last_updated: new Date().toISOString(),
+      data_source: "live",
     };
   } catch (err) {
     const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
@@ -239,6 +318,7 @@ function generateSimulatedScore(ticker: string): ScoreRecord {
     external: 30 + (seed % 60),
     evidence_count: 3 + (seed % 8),
     last_updated: new Date().toISOString(),
+    data_source: "simulated",
   };
 }
 
@@ -273,6 +353,22 @@ async function runScoringAutomation(): Promise<void> {
   }
 
   console.log(`\n📊 Results: ${scores.length}/${SEED_BASKET.length} tickers analyzed\n`);
+
+  // Surface fallbacks in the run output. A simulated row is fabricated data, and
+  // a green run that quietly wrote fabricated numbers is the failure mode this
+  // project has already been bitten by more than once.
+  const simulated = scores.filter((s) => s.data_source === "simulated");
+  if (simulated.length > 0) {
+    const tickers = simulated.map((s) => s.ticker).join(", ");
+    console.warn(
+      `⚠️  ${simulated.length}/${scores.length} record(s) are SIMULATED, not real analysis: ${tickers}`
+    );
+    console.warn(`   These are marked "simulated" in the Data Source column in Airtable.`);
+    console.warn(`   See scorer-debug.txt for the finishReason on each failure.\n`);
+    debugLog(`SIMULATED FALLBACK USED for: ${tickers}`);
+  } else {
+    console.log("✓ All records are live Gemini analysis — no simulated fallbacks\n");
+  }
 
   // Write to Airtable if configured
   if (AIRTABLE_PAT) {
