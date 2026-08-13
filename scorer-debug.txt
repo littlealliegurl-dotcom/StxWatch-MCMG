@@ -1,14 +1,14 @@
 Waiting 15s before next ticker (rate limit spacing)
 GEMINI PARSE FAILURE for RENE — raw response (first 500 chars):
 {
-  "overall": 18,
-  "confidence": 25,
-  "demand": 35,
-  "execution": 15,
-  "competition": 20,
-  "financial": 10,
-  "external": 30,
-  "evidence_count": 4
+  "overall": 10,
+  "confidence": 30,
+  "demand": 30,
+  "execution": 10,
+  "competition": 25,
+  "financial": 5,
+  "external": 20,
+  "evidence_count": 5
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
