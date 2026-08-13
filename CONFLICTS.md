@@ -124,3 +124,11 @@ Kept `gemini-3.5-flash` as specified in the AI Studio export's own working
 `server.ts`, since this refers to the user's existing Google Gemini API
 configuration, not an Anthropic product, and there was no indication in any
 source that it needed to change.
+
+**Superseded on this branch.** This fork runs entirely on the Anthropic API —
+`@google/genai` is removed and both call sites use `@anthropic-ai/sdk` with
+structured outputs. The motivation was not the model itself but the seam: two
+providers meant two SDKs, two credentials, two structured-output mechanisms,
+and two independent failure modes to reason about. The Gemini implementation
+remains intact on `claude/repo-access-permissions-debug-37og3s` if it is ever
+needed for comparison.

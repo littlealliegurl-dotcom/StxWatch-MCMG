@@ -11,7 +11,7 @@
  */
 
 import dotenv from "dotenv";
-import { GoogleGenAI, Type } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import { writeFileSync } from "fs";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ const SEED_BASKET = ["ASTS", "RENE", "BMEA", "LUNA", "QUBT"] as const;
 const AIRTABLE_BASE_ID = "apppoYLfhlaPHeFhO"; // Scores base (separate from the repo-mirror base app28hlWLnX51LBxk)
 const AIRTABLE_SCORES_TABLE_ID = "tblyi3vwdStEI5Svh"; // tblScores
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
 interface ScoreRecord {
   ticker: string;
@@ -54,7 +54,7 @@ interface ScoreRecord {
   external: number;
   evidence_count: number;
   /**
-   * Whether this row is real Gemini analysis or the deterministic fallback.
+   * Whether this row is real Claude analysis or the deterministic fallback.
    * Persisted to Airtable so a simulated row is never mistaken for signal —
    * that confusion is what let fabricated scores sit undetected before.
    */
@@ -152,7 +152,7 @@ async function writeScoresToAirtable(scores: ScoreRecord[]): Promise<boolean> {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Scoring Logic (Gemini-backed with fallback simulation)
+// Scoring Logic (Claude-backed with fallback simulation)
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -192,87 +192,100 @@ function parseScorePayload(text: string): Record<string, unknown> | null {
   return null;
 }
 
-async function analyzeTickerWithGemini(ticker: string): Promise<ScoreRecord> {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
-    debugLog(`GEMINI SKIPPED for ${ticker} — key is ${!GEMINI_API_KEY ? "empty/unset" : "placeholder value"} (length: ${GEMINI_API_KEY.length})`);
-    console.log(`  (No Gemini API key — using simulated analysis for ${ticker})`);
+async function analyzeTickerWithClaude(ticker: string): Promise<ScoreRecord> {
+  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "MY_ANTHROPIC_API_KEY") {
+    debugLog(`CLAUDE SKIPPED for ${ticker} — key is ${!ANTHROPIC_API_KEY ? "empty/unset" : "placeholder value"} (length: ${ANTHROPIC_API_KEY.length})`);
+    console.log(`  (No Anthropic API key — using simulated analysis for ${ticker})`);
     return generateSimulatedScore(ticker);
   }
 
-  const ai = new GoogleGenAI({
-    apiKey: GEMINI_API_KEY,
-    httpOptions: { headers: { "User-Agent": "stxwatch-mcmg-scorer" } },
-  });
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
   const prompt = `Conduct a comprehensive Investment Evidence Scoring Engine (IESE) analysis for ${ticker}, based on your training knowledge of the company (you do not have live web search access for this analysis).
 
-Provide a JSON response with this exact structure (numeric scores 0-100):
-{
-  "overall": <number>,
-  "confidence": <number>,
-  "demand": <number>,
-  "execution": <number>,
-  "competition": <number>,
-  "financial": <number>,
-  "external": <number>,
-  "evidence_count": <number of distinct facts/observations you're confident are accurate from training data>
-}
+Score each of the five IESE categories from 0-100: demand, execution, competition,
+financial, external. Also provide an overall score, a confidence score, and
+evidence_count — the number of distinct facts or observations you are confident are
+accurate from training data.
 
-Be conservative in scoring — prefer accuracy over optimism. Since you don't have live data, keep "confidence" lower than you would with real-time search, and be honest that this reflects your training-data knowledge rather than current market conditions.`;
+Be conservative in scoring — prefer accuracy over optimism. Since you don't have live
+data, keep confidence lower than you would with real-time search, and be honest that
+this reflects your training-data knowledge rather than current market conditions.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction:
-          "You are a rigorous, evidence-based equities research engine working from training knowledge only (no live search access). Every score must be traceable to something you actually know. Prefer honesty about uncertainty over confident fabrication — lower confidence scores are expected and correct given the lack of live data.",
-        responseMimeType: "application/json",
-        // Without an explicit schema the model emits free-form JSON that can stop
-        // mid-object — which is exactly how RENE truncated before its closing
-        // brace and fell through to the simulated fallback on every run.
-        // server.ts has always constrained its own call this way; this matches it.
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            overall: { type: Type.INTEGER },
-            confidence: { type: Type.INTEGER },
-            demand: { type: Type.INTEGER },
-            execution: { type: Type.INTEGER },
-            competition: { type: Type.INTEGER },
-            financial: { type: Type.INTEGER },
-            external: { type: Type.INTEGER },
-            evidence_count: { type: Type.INTEGER },
+    const response = await client.messages.create({
+      model: "claude-opus-5",
+      max_tokens: 4096,
+      system:
+        "You are a rigorous, evidence-based equities research engine working from training knowledge only (no live search access). Every score must be traceable to something you actually know. Prefer honesty about uncertainty over confident fabrication — lower confidence scores are expected and correct given the lack of live data.",
+      output_config: {
+        // `medium` is deliberate: this is a bounded scoring call, not open-ended
+        // reasoning, and it keeps the nightly run cheap across the basket.
+        effort: "medium",
+        // Structured outputs constrain generation to this schema, so the
+        // truncated-JSON failure that silently simulated RENE every night
+        // cannot recur. Note `additionalProperties: false` is required.
+        format: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              overall: { type: "integer", description: "0-100" },
+              confidence: { type: "integer", description: "0-100" },
+              demand: { type: "integer", description: "0-100" },
+              execution: { type: "integer", description: "0-100" },
+              competition: { type: "integer", description: "0-100" },
+              financial: { type: "integer", description: "0-100" },
+              external: { type: "integer", description: "0-100" },
+              evidence_count: { type: "integer" },
+            },
+            required: [
+              "overall",
+              "confidence",
+              "demand",
+              "execution",
+              "competition",
+              "financial",
+              "external",
+              "evidence_count",
+            ],
           },
-          required: [
-            "overall",
-            "confidence",
-            "demand",
-            "execution",
-            "competition",
-            "financial",
-            "external",
-            "evidence_count",
-          ],
         },
       },
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const text = response.text ? response.text.trim() : "";
-    const finishReason = response.candidates?.[0]?.finishReason ?? "(none reported)";
+    const stopReason = response.stop_reason ?? "(none reported)";
+
+    // A refusal returns HTTP 200 with empty or partial content, so check why
+    // generation stopped before trusting anything in `content`.
+    if (stopReason === "refusal") {
+      const category = response.stop_details?.category ?? "unspecified";
+      debugLog(`CLAUDE REFUSAL for ${ticker} — category: ${category}`);
+      console.warn(`  ⚠️  Claude declined the request for ${ticker} (${category})`);
+      return generateSimulatedScore(ticker);
+    }
+
+    // Thinking blocks share the content array; only text carries the payload.
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("")
+      .trim();
 
     const parsed = parseScorePayload(text);
 
     if (!parsed) {
       // Record *why* it failed, not just that it did. A bare "parse failure" is
-      // what made this bug take two runs to characterise.
-      debugLog(`GEMINI PARSE FAILURE for ${ticker}`);
-      debugLog(`  finishReason: ${finishReason}`);
+      // what made the equivalent bug take two runs to characterise.
+      debugLog(`CLAUDE PARSE FAILURE for ${ticker}`);
+      debugLog(`  stop_reason: ${stopReason}`);
       debugLog(`  response length: ${text.length} chars`);
       debugLog(`  raw response (first 500 chars):`);
       debugLog(text.slice(0, 500) || "(empty response)");
       console.warn(
-        `  ⚠️  Could not parse Gemini response for ${ticker} (finishReason: ${finishReason})`
+        `  ⚠️  Could not parse Claude response for ${ticker} (stop_reason: ${stopReason})`
       );
       return generateSimulatedScore(ticker);
     }
@@ -292,12 +305,12 @@ Be conservative in scoring — prefer accuracy over optimism. Since you don't ha
     };
   } catch (err) {
     const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    debugLog(`GEMINI ERROR — ticker ${ticker}`);
+    debugLog(`CLAUDE ERROR — ticker ${ticker}`);
     debugLog(errMsg);
     if (err instanceof Error && err.stack) {
       debugLog(err.stack);
     }
-    console.warn(`  ⚠️  Gemini request failed for ${ticker}:`, err);
+    console.warn(`  ⚠️  Claude request failed for ${ticker}:`, err);
     return generateSimulatedScore(ticker);
   }
 }
@@ -337,7 +350,7 @@ async function runScoringAutomation(): Promise<void> {
     const ticker = SEED_BASKET[i];
     console.log(`📈 Analyzing ${ticker}...`);
     try {
-      const score = await analyzeTickerWithGemini(ticker);
+      const score = await analyzeTickerWithClaude(ticker);
       scores.push(score);
       console.log(
         `  ✓ Score: ${score.overall}/100 (confidence: ${score.confidence}/100)`
@@ -367,7 +380,7 @@ async function runScoringAutomation(): Promise<void> {
     console.warn(`   See scorer-debug.txt for the finishReason on each failure.\n`);
     debugLog(`SIMULATED FALLBACK USED for: ${tickers}`);
   } else {
-    console.log("✓ All records are live Gemini analysis — no simulated fallbacks\n");
+    console.log("✓ All records are live Claude analysis — no simulated fallbacks\n");
   }
 
   // Write to Airtable if configured

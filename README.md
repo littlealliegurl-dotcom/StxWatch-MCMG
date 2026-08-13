@@ -15,7 +15,7 @@ where every score traces back to a dated, sourced piece of evidence.
   successor), `lucide-react` icons
 - **Backend:** Express 4, served through Vite's middleware in dev and static
   files in production
-- **AI:** `@google/genai` calling Gemini with Google Search Grounding
+- **AI:** `@anthropic-ai/sdk` calling Claude with structured outputs
 - **Persistence:** flat-file JSON store at `data/stocks.json` (no database
   required)
 
@@ -24,13 +24,13 @@ where every score traces back to a dated, sourced piece of evidence.
 ```bash
 npm install
 cp .env.example .env
-# edit .env and set a real GEMINI_API_KEY to enable live analysis
+# edit .env and set a real ANTHROPIC_API_KEY to enable live analysis
 npm run dev
 ```
 
 The dev server runs on `http://localhost:3000`.
 
-Without a `GEMINI_API_KEY` configured, the app still runs — `/api/stocks/analyze`
+Without an `ANTHROPIC_API_KEY` configured, the app still runs — `/api/stocks/analyze`
 falls back to a clearly-labeled offline simulation engine so the UI is fully
 exercisable without any external API key.
 
@@ -72,13 +72,13 @@ locked enums, not free text, at both the top level and per-category.
 
 - `GET /api/stocks` — returns all tracked companies (pre-seeded + persisted)
 - `POST /api/stocks/analyze` — runs a fresh IESE analysis for a ticker via
-  Gemini + Search Grounding (or the offline simulator if no API key is set),
+  Claude (or the offline simulator if no API key is set),
   persists it, and returns the result
 - `GET /api/config` — reports `{ demoMode }` so the client can show a banner
   without depending on `process.env` inside the browser bundle
 
 Industry-specific indicators are **not** hardcoded per sector. Instead, the
-Gemini prompt asks the model to identify the company's actual industry and
+Claude prompt asks the model to identify the company's actual industry and
 then choose the two most relevant metrics for each of the five fixed
 categories — so the categories stay constant while the underlying metrics
 adapt per industry.

@@ -1,42 +1,52 @@
 /**
- * StxWatch-MCMG — IESE analysis engine (shared)
+ * StxWatch-MCMG — IESE analysis engine (Claude-native)
  *
- * Extracted from server.ts so both the local dev server and the Vercel
- * serverless function can run the same code path. Nothing here touches the
- * filesystem, an HTTP server, or Vite — it must stay importable inside a
- * serverless function.
+ * Runs entirely on the Anthropic API. There is no second model provider in
+ * this fork: the web app and the nightly scorer share one SDK, one credential
+ * (ANTHROPIC_API_KEY) and one structured-output mechanism.
+ *
+ * Nothing here touches the filesystem, an HTTP server, or Vite — it must stay
+ * importable inside a Vercel serverless function.
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import { CompanyScore, computeOverallScore } from "../src/types";
 
 export const TREND_ENUM = ["↑↑", "↑", "→", "↓", "↓↓"];
 export const VERIFICATION_ENUM = ["++", "+", "○", "?", "X"];
 
-const GEMINI_MODEL = "gemini-3.5-flash";
+const MODEL = "claude-opus-5";
 
-/** True when no usable Gemini key is configured, so the app runs simulated. */
+/** True when no usable Anthropic key is configured, so the app runs simulated. */
 export function isDemoMode(): boolean {
-  const apiKey = process.env.GEMINI_API_KEY;
-  return !apiKey || apiKey === "MY_GEMINI_API_KEY";
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  return !apiKey || apiKey === "MY_ANTHROPIC_API_KEY";
 }
 
+/**
+ * Structured-output schemas require `additionalProperties: false` on every
+ * object, and do not support numeric bounds (min/max) — ranges are stated in
+ * the prompt instead. Keep both rules in mind when editing these.
+ */
 function categoryBlockSchema() {
   return {
-    type: Type.OBJECT,
+    type: "object",
+    additionalProperties: false,
     properties: {
-      score: { type: Type.INTEGER },
-      trend: { type: Type.STRING, enum: TREND_ENUM },
+      score: { type: "integer", description: "0-100" },
+      trend: { type: "string", enum: TREND_ENUM },
       metrics: {
-        type: Type.ARRAY,
+        type: "array",
+        description: "Exactly two metrics, chosen for this company's industry.",
         items: {
-          type: Type.OBJECT,
+          type: "object",
+          additionalProperties: false,
           properties: {
-            name: { type: Type.STRING },
-            value: { type: Type.STRING },
-            score: { type: Type.INTEGER },
-            trend: { type: Type.STRING, enum: TREND_ENUM },
-            notes: { type: Type.STRING },
+            name: { type: "string" },
+            value: { type: "string", description: "Short display value" },
+            score: { type: "integer", description: "0-100" },
+            trend: { type: "string", enum: TREND_ENUM },
+            notes: { type: "string", description: "One sentence" },
           },
           required: ["name", "value", "score", "trend", "notes"],
         },
@@ -46,33 +56,39 @@ function categoryBlockSchema() {
   };
 }
 
-const analysisResponseSchema = {
-  type: Type.OBJECT,
+const analysisSchema = {
+  type: "object",
+  additionalProperties: false,
   properties: {
     company: {
-      type: Type.OBJECT,
+      type: "object",
+      additionalProperties: false,
       properties: {
-        name: { type: Type.STRING },
-        industry: { type: Type.STRING },
-        market_cap: { type: Type.STRING },
-        price: { type: Type.NUMBER },
-        price_change_24h: { type: Type.NUMBER },
-        volume_24h: { type: Type.STRING },
+        name: { type: "string" },
+        industry: { type: "string" },
+        market_cap: { type: "string" },
+        price: { type: "number" },
+        price_change_24h: { type: "number" },
+        volume_24h: { type: "string" },
       },
-      required: ["name", "industry", "market_cap", "price", "price_change_24h", "volume_24h"],
+      required: [
+        "name", "industry", "market_cap", "price", "price_change_24h", "volume_24h",
+      ],
     },
     score: {
-      type: Type.OBJECT,
+      type: "object",
+      additionalProperties: false,
       properties: {
-        confidence: { type: Type.INTEGER },
-        trend: { type: Type.STRING, enum: TREND_ENUM },
-        verification: { type: Type.STRING, enum: VERIFICATION_ENUM },
-        evidence_strength: { type: Type.INTEGER },
+        confidence: { type: "integer", description: "0-100" },
+        trend: { type: "string", enum: TREND_ENUM },
+        verification: { type: "string", enum: VERIFICATION_ENUM },
+        evidence_strength: { type: "integer", description: "1-5" },
       },
       required: ["confidence", "trend", "verification", "evidence_strength"],
     },
     categories: {
-      type: Type.OBJECT,
+      type: "object",
+      additionalProperties: false,
       properties: {
         demand: categoryBlockSchema(),
         execution: categoryBlockSchema(),
@@ -83,36 +99,40 @@ const analysisResponseSchema = {
       required: ["demand", "execution", "competition", "financial", "external"],
     },
     evidence: {
-      type: Type.ARRAY,
+      type: "array",
+      description: "Two to four dated observations.",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         properties: {
-          title: { type: Type.STRING },
-          category: { type: Type.STRING },
-          description: { type: Type.STRING },
-          date: { type: Type.STRING },
-          source: { type: Type.STRING },
-          url: { type: Type.STRING },
-          reliability: { type: Type.INTEGER },
-          verified: { type: Type.BOOLEAN },
-          independent_sources: { type: Type.INTEGER },
-          confidence: { type: Type.INTEGER },
-          impact: { type: Type.INTEGER },
-          expires: { type: Type.STRING },
+          title: { type: "string" },
+          category: { type: "string" },
+          description: { type: "string" },
+          date: { type: "string", description: "ISO 8601 date" },
+          source: { type: "string" },
+          url: { type: "string", description: "Empty string if not known" },
+          reliability: { type: "integer", description: "0-100" },
+          verified: { type: "boolean" },
+          independent_sources: { type: "integer" },
+          confidence: { type: "integer", description: "0-100" },
+          impact: { type: "integer", description: "-100 bearish to 100 bullish" },
+          expires: { type: "string", description: "ISO 8601 date" },
         },
         required: [
           "title", "category", "description", "date", "source", "url",
-          "reliability", "verified", "independent_sources", "confidence", "impact", "expires",
+          "reliability", "verified", "independent_sources", "confidence",
+          "impact", "expires",
         ],
       },
     },
     summary: {
-      type: Type.OBJECT,
+      type: "object",
+      additionalProperties: false,
       properties: {
-        overall_assessment: { type: Type.STRING },
-        key_risks: { type: Type.ARRAY, items: { type: Type.STRING } },
-        watch_items: { type: Type.ARRAY, items: { type: Type.STRING } },
-        next_catalysts: { type: Type.ARRAY, items: { type: Type.STRING } },
+        overall_assessment: { type: "string" },
+        key_risks: { type: "array", items: { type: "string" } },
+        watch_items: { type: "array", items: { type: "string" } },
+        next_catalysts: { type: "array", items: { type: "string" } },
       },
       required: ["overall_assessment", "key_risks", "watch_items", "next_catalysts"],
     },
@@ -120,16 +140,23 @@ const analysisResponseSchema = {
   required: ["company", "score", "categories", "evidence", "summary"],
 };
 
+const SYSTEM_PROMPT =
+  "You are a rigorous, evidence-based equities research engine working from training " +
+  "knowledge only — you have no live search access. Every score must be traceable to " +
+  "something you actually know. Prefer honesty about uncertainty over confident " +
+  "fabrication; lower confidence scores are expected and correct given the lack of " +
+  "live data.";
+
 function buildAnalysisPrompt(ticker: string): string {
-  // 4DATA — industry profiles are determined dynamically by the model rather
-  // than hardcoded, so the same five fixed categories flex to whatever
-  // indicators are relevant for the company's actual industry.
+  // Industry profiles are determined dynamically by the model rather than
+  // hardcoded, so the same five fixed categories flex to whatever indicators
+  // are relevant for the company's actual industry.
   return `Conduct a comprehensive Investment Evidence Scoring Engine (IESE) analysis for the
 company with stock ticker: ${ticker}.
 
-You are working from your training knowledge only — you do NOT have live web search access
-for this analysis. First identify the company's actual industry, then choose the two most
-relevant, industry-appropriate metrics for EACH of these five fixed categories:
+You are working from training knowledge only — you do NOT have live web search access.
+First identify the company's actual industry, then choose the two most relevant,
+industry-appropriate metrics for EACH of these five fixed categories:
 
 1. Demand — market size, customer/partner traction, adoption signals
 2. Execution — product/operational delivery, management execution
@@ -137,70 +164,84 @@ relevant, industry-appropriate metrics for EACH of these five fixed categories:
 4. Financial — balance sheet health, revenue, margins, cash runway
 5. External — regulatory, macro, and sector-sentiment factors
 
-For each category, provide a 0-100 score, a trend arrow, and exactly two metrics (name, a
-short display value, a 0-100 score, a trend arrow, and a one-sentence note).
+All 0-100 scores use the full range. evidence_strength is 1-5. impact runs from
+-100 (bearish) to 100 (bullish).
 
-Provide 2-4 evidence items — each one a specific, dated observation you are confident about
-from training data, with a source name and a URL if you know one. Do not fabricate sources or
-URLs. If you are not confident a claim is independently verifiable, reflect that with a lower
-reliability/confidence score and verified: false. Leave url as an empty string rather than
-guessing one.
+Provide 2-4 evidence items — each a specific, dated observation you are confident about
+from training data, with a source name. Do not fabricate sources or URLs; leave url as an
+empty string rather than guessing one. If you are not confident a claim is independently
+verifiable, reflect that with a lower reliability/confidence score and verified: false.
 
-Because you have no live data, keep "confidence" and "reliability" lower than you would with
-real-time search, and treat price/market-cap figures as approximate and possibly stale — say
-so in the relevant metric notes.
+Because you have no live data, keep confidence and reliability lower than you would with
+real-time search, and treat price and market-cap figures as approximate and possibly
+stale — say so in the relevant metric notes.
 
 Finally, provide an executive summary, 2-4 key risks, 2-4 watch items, and 2-4 upcoming
 catalysts.`;
 }
 
+/** Concatenate the assistant's text blocks, ignoring thinking blocks. */
+function textOf(content: Anthropic.ContentBlock[]): string {
+  return content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim();
+}
+
 /**
- * Run a live IESE analysis through Gemini.
+ * Run a live IESE analysis through Claude.
  *
- * Note: Google Search grounding is deliberately NOT enabled. Grounded requests
- * hit 429 RESOURCE_EXHAUSTED immediately on the free tier — the same reason
- * scorer.ts dropped it. Both call sites now run on training knowledge.
- * Throws on any failure; callers decide whether to fall back.
+ * Structured outputs constrain the response to `analysisSchema`, so a
+ * truncated or prose-wrapped body is not a failure mode here the way it was
+ * with free-form generation. Throws on any failure; callers decide whether to
+ * fall back.
  */
-export async function runGeminiAnalysis(ticker: string): Promise<CompanyScore> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    throw new Error("GEMINI_API_KEY is not configured.");
+export async function runClaudeAnalysis(ticker: string): Promise<CompanyScore> {
+  if (isDemoMode()) {
+    throw new Error("ANTHROPIC_API_KEY is not configured.");
   }
 
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: { headers: { "User-Agent": "stxwatch-mcmg" } },
-  });
+  const client = new Anthropic();
 
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: buildAnalysisPrompt(ticker),
-    config: {
-      systemInstruction:
-        "You are a rigorous, evidence-based equities research engine working from training " +
-        "knowledge only (no live search access). Every score must be traceable to something " +
-        "you actually know. Prefer honesty about uncertainty over confident fabrication — " +
-        "lower confidence scores are expected and correct given the lack of live data.",
-      responseMimeType: "application/json",
-      responseSchema: analysisResponseSchema,
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    system: SYSTEM_PROMPT,
+    output_config: {
+      effort: "high",
+      format: { type: "json_schema", schema: analysisSchema },
     },
+    messages: [{ role: "user", content: buildAnalysisPrompt(ticker) }],
   });
 
-  const responseText = response.text ? response.text.trim() : "";
-  if (!responseText) {
-    const finishReason = response.candidates?.[0]?.finishReason ?? "(none reported)";
-    throw new Error(`Empty response returned from Gemini (finishReason: ${finishReason}).`);
+  // Check why generation stopped before trusting the content. A refusal
+  // returns HTTP 200 with empty or partial content, so indexing straight into
+  // content[0] would misread a declined request as an answer.
+  if (response.stop_reason === "refusal") {
+    const detail = response.stop_details?.category ?? "unspecified";
+    throw new Error(`Claude declined the request for ${ticker} (category: ${detail}).`);
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `Response for ${ticker} hit max_tokens before completing — raise max_tokens.`
+    );
+  }
+
+  const text = textOf(response.content);
+  if (!text) {
+    throw new Error(
+      `Empty response for ${ticker} (stop_reason: ${response.stop_reason}).`
+    );
   }
 
   let parsed: any;
   try {
-    parsed = JSON.parse(responseText);
+    parsed = JSON.parse(text);
   } catch {
-    const finishReason = response.candidates?.[0]?.finishReason ?? "(none reported)";
     throw new Error(
-      `Unparseable Gemini response for ${ticker} (finishReason: ${finishReason}, ` +
-        `${responseText.length} chars).`
+      `Unparseable response for ${ticker} (stop_reason: ${response.stop_reason}, ` +
+        `${text.length} chars).`
     );
   }
 
@@ -233,13 +274,13 @@ export async function runGeminiAnalysis(ticker: string): Promise<CompanyScore> {
 
 /**
  * Deterministic, clearly-labeled synthetic fallback. Used when no
- * GEMINI_API_KEY is configured or a live call fails. Every record it produces
- * says so in its own evidence trail and summary — a simulated record must
- * never be mistakable for real analysis.
+ * ANTHROPIC_API_KEY is configured or a live call fails. Every record it
+ * produces says so in its own evidence trail and summary — a simulated record
+ * must never be mistakable for real analysis.
  */
 export function generateSimulatedAnalysis(
   ticker: string,
-  reason = "no GEMINI_API_KEY configured"
+  reason = "no ANTHROPIC_API_KEY configured"
 ): CompanyScore {
   const cleanTicker = ticker.toUpperCase().trim();
   const seedNum = cleanTicker.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -322,9 +363,9 @@ export function generateSimulatedAnalysis(
       },
     ],
     summary: {
-      overall_assessment: `Simulated placeholder analysis for ${cleanTicker} (${reason}). Configure GEMINI_API_KEY to run a real, evidence-based IESE analysis.`,
+      overall_assessment: `Simulated placeholder analysis for ${cleanTicker} (${reason}). Configure ANTHROPIC_API_KEY to run a real, evidence-based IESE analysis.`,
       key_risks: ["No live evidence available in simulation mode"],
-      watch_items: ["Configure GEMINI_API_KEY for real analysis"],
+      watch_items: ["Configure ANTHROPIC_API_KEY for real analysis"],
       next_catalysts: ["N/A — simulated record"],
     },
   };

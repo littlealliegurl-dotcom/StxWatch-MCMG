@@ -35,8 +35,8 @@ To trigger manually:
 
 ## What the Scorer Does
 
-1. **Analyzes each ticker** — calls Gemini API with a prompt to evaluate demand, execution, competition, financial health, and external factors
-2. **Falls back gracefully** — if Gemini key is not set or API fails, generates a deterministic simulated score
+1. **Analyzes each ticker** — calls the Claude API with a prompt to evaluate demand, execution, competition, financial health, and external factors
+2. **Falls back gracefully** — if the Anthropic key is not set or the API fails, generates a deterministic simulated score
 3. **Computes category scores** — produces 0–100 values for each of the five IESE categories
 4. **Writes to Airtable** — if AIRTABLE_PAT is configured, stores records in the `tblScores` table
 
@@ -45,7 +45,7 @@ To trigger manually:
 ### Environment Variables
 
 **Required for full automation:**
-- `GEMINI_API_KEY` — Google Gemini API key (get from https://ai.google.dev)
+- `ANTHROPIC_API_KEY` — Anthropic API key (get from https://console.anthropic.com)
 - `AIRTABLE_PAT` — Airtable Personal Access Token with `data.records:write` scope
 
 **Optional:**
@@ -55,7 +55,7 @@ To trigger manually:
 
 1. Go to repo → Settings → Secrets and variables → Actions
 2. Click "New repository secret"
-3. Name: `GEMINI_API_KEY`, Value: your Gemini key
+3. Name: `ANTHROPIC_API_KEY`, Value: your Anthropic key
 4. Name: `AIRTABLE_PAT`, Value: your Airtable PAT
 5. Save
 
@@ -118,18 +118,18 @@ npm run score
 ### "Airtable API error (401)"
 Your token is invalid or expired. Generate a new one at https://airtable.com/account/tokens.
 
-### "Could not parse Gemini response"
-Gemini returned unexpected JSON. Check the raw response in logs (or `scorer-debug.txt`, committed on every run). This shouldn't happen with `gemini-3.5-flash`, but if it does, the scorer falls back to simulation.
+### "Could not parse Claude response"
+The response did not parse as JSON. Check `scorer-debug.txt` (committed on every run) — it records the `stop_reason` and response length alongside the raw text. Structured outputs constrain generation to the schema, so this should not happen; if it does, the scorer falls back to simulation and marks the row `simulated` in Airtable's Data Source column.
 
-### A note on Google Search grounding
-The scorer intentionally does **not** use Gemini's Google Search grounding tool. Free-tier keys hit immediate `429 RESOURCE_EXHAUSTED` errors when grounding is combined with `gemini-3.5-flash` — a known, widely-reported issue, not specific to this project. Analysis currently runs off Gemini's training knowledge instead, which keeps it on the free tier and reliably working, at the cost of not reflecting live market/news data. This was a deliberate choice: working-but-imperfect now, with the option to enable billing and re-add grounding later once everything else is stable.
+### A note on live data
+The scorer runs off Claude's training knowledge — it has no live web search. Analysis therefore does not reflect current market or news data, and the prompt tells the model to keep confidence scores conservative and flag price/market-cap figures as possibly stale. Rows written without live analysis are marked `simulated` in the Data Source column so they are never mistaken for real signal.
 
 ### "Table not found (404)"
 The `tblScores` table ID in `scorer.ts` doesn't exist in your Airtable base. Either create the table or update the ID.
 
 ## Next Steps
 
-- [ ] Set Gemini and Airtable secrets in GitHub
+- [ ] Set Anthropic and Airtable secrets in GitHub
 - [ ] Test manually: `npm run score`
 - [ ] Verify records appear in Airtable
 - [ ] Monitor first automated run at next daily trigger (09:00 UTC)

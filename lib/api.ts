@@ -8,7 +8,7 @@
  */
 
 import express, { type Express, type Request, type Response } from "express";
-import { generateSimulatedAnalysis, isDemoMode, runGeminiAnalysis } from "./analysis";
+import { generateSimulatedAnalysis, isDemoMode, runClaudeAnalysis } from "./analysis";
 import { isAirtableConfigured, listStocks, saveStock } from "./store";
 
 export function createApiApp(): Express {
@@ -27,7 +27,7 @@ export function createApiApp(): Express {
   });
 
   // GET /api/config — tells the client whether it is running against live
-  // Gemini analysis or the offline simulation. See CONFLICTS.md item 7:
+  // Claude analysis or the offline simulation. See CONFLICTS.md item 7:
   // process.env isn't reliably available in the Vite client bundle, so this
   // replaces the AI Studio export's client-side env var check.
   app.get("/api/config", (_req: Request, res: Response) => {
@@ -50,16 +50,16 @@ export function createApiApp(): Express {
     let dataSource: "live" | "simulated";
 
     if (isDemoMode()) {
-      console.log("GEMINI_API_KEY not configured — returning simulated analysis.");
+      console.log("ANTHROPIC_API_KEY not configured — returning simulated analysis.");
       result = generateSimulatedAnalysis(ticker);
       dataSource = "simulated";
     } else {
       try {
-        result = await runGeminiAnalysis(ticker);
+        result = await runClaudeAnalysis(ticker);
         dataSource = "live";
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(`Gemini analysis failed for ${ticker}:`, message);
+        console.error(`Claude analysis failed for ${ticker}:`, message);
         result = generateSimulatedAnalysis(ticker, `live analysis failed — ${message}`);
         dataSource = "simulated";
       }
