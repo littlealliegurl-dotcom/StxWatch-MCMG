@@ -26,14 +26,42 @@ export function createApiApp(): Express {
     }
   });
 
+  // GET /api/health — deliberately depends on NOTHING: no env vars, no network,
+  // no Airtable, no model call. Its only job is to prove the serverless function
+  // is mounted and routing, so a routing failure can be told apart from a
+  // missing-credential failure without guessing. If this returns HTML or 404,
+  // the problem is vercel.json, not your keys.
+  app.get("/api/health", (_req: Request, res: Response) => {
+    res.json({
+      ok: true,
+      service: "stxwatch-mcmg",
+      node: process.version,
+      time: new Date().toISOString(),
+      // Booleans only — never the values themselves.
+      env: {
+        GEMINI_API_KEY: !isDemoMode(),
+        AIRTABLE_PAT: isAirtableConfigured(),
+      },
+    });
+  });
+
   // GET /api/config — tells the client whether it is running against live
   // Gemini analysis or the offline simulation. See CONFLICTS.md item 7:
   // process.env isn't reliably available in the Vite client bundle, so this
   // replaces the AI Studio export's client-side env var check.
   app.get("/api/config", (_req: Request, res: Response) => {
+    // `missing` names exactly which credentials still need to be set, so a
+    // half-configured deploy reports what is wrong instead of silently
+    // degrading to simulated data.
+    const missing: string[] = [];
+    if (isDemoMode()) missing.push("GEMINI_API_KEY");
+    if (!isAirtableConfigured()) missing.push("AIRTABLE_PAT");
+
     res.json({
       demoMode: isDemoMode(),
       persistence: isAirtableConfigured() ? "airtable" : "memory",
+      ready: missing.length === 0,
+      missing,
     });
   });
 
