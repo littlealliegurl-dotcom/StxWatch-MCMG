@@ -1,3 +1,13 @@
+GEMINI PARSE FAILURE for ASTS — raw response (first 500 chars):
+{
+  "overall": 52,
+  "confidence": 45,
+  "demand": 80,
+  "execution": 55,
+  "competition": 42,
+  "financial": 35,
+  "external": 48,
+  "evidence_count": 12
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
