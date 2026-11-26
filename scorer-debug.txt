@@ -2,3 +2,12 @@ Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
 Waiting 15s before next ticker (rate limit spacing)
+GEMINI ERROR — ticker QUBT
+ApiError: {"error":{"code":503,"message":"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.","status":"UNAVAILABLE"}}
+ApiError: {"error":{"code":503,"message":"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.","status":"UNAVAILABLE"}}
+    at throwErrorIfNotOK (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:14151:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:13851:13
+    at async Models.generateContent (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/node_modules/@google/genai/dist/node/index.cjs:15282:24)
+    at async analyzeTickerWithGemini (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:128:22)
+    at async runScoringAutomation (/home/runner/work/StxWatch-MCMG/StxWatch-MCMG/dist/scorer.cjs:194:21)
